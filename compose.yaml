@@ -1,0 +1,58 @@
+services:
+  nginx:
+    container_name: nginx-webserver
+    build: ./nginx
+    ports:
+      - 80:80
+    networks:
+      - notesapp-nw
+    restart: always
+    depends_on:
+      - webapp
+
+  db:
+    container_name: mysql-jdb
+    image: mysql
+    ports:
+      - 3306:3306
+    networks:
+      - notesapp-nw
+    volumes:
+      - myvolume-db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=egtroot
+      - MYSQL_DATABASE=notesappjdb_db
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h","localhost","-uroot","-pegtroot"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+  webapp:
+    container_name: notesapp
+    build: .
+    command: sh -c "python manage.py migrate --noinput && gunicorn notesapp.wsgi --bind 0.0.0.0:8000"
+    networks:
+      - notesapp-nw
+    ports:
+      - 8000:8000
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000 || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    
+
+
+volumes:
+  myvolume-db:
+
+networks:
+  notesapp-nw:
